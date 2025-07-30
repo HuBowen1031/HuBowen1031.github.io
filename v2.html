@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班级座位表排布系统 v2</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .upload-section {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .classroom {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        .group {
+            width: 24%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #fff;
+        }
+        .group-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+        }
+        .desk {
+            display: flex;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f8f8f8;
+        }
+        .seat {
+            flex: 1;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .seat-left {
+            border-right: 1px dashed #ccc;
+        }
+        .desk-label {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 10px;
+            color: #999;
+        }
+        .student-card {
+            padding: 8px;
+            margin: 5px;
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 4px;
+            cursor: move;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            
+        }
+        .student-list {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            min-height: 100px;
+            background-color: #f9f9f9;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .empty-seat {
+            color: #999;
+            font-style: italic;
+        }
+        .delete-btn {
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #f44336;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 0 5px;
+    }
+    .delete-btn:hover {
+        color: #d32f2f;
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>班级座位表排布系统 v2</h1>
+        
+        <div class="upload-section">
+            <h3>第一步：上传学生名单</h3>
+            <p>请上传包含学生名单的Excel文件（单列格式，共56人）</p>
+            <input type="file" id="fileInput" accept=".xlsx" />
+            <p id="uploadStatus">等待上传文件...</p>
+        </div>
+        
+        <div class="controls">
+            <button id="exportBtn" disabled>导出座位表</button>
+            <button id="resetBtn" disabled>重置座位</button>
+        </div>
+        
+        <div id="studentPool" class="student-list">
+            <p style="text-align: center; color: #999;">学生名单上传后将显示在这里</p>
+        </div>
+        
+        <div class="classroom">
+            <div class="group" id="group1">
+                <div class="group-title">第一组（7对同桌）</div>
+                <!-- 7对同桌 -->
+                <div class="desk" data-desk="1-1">
+                    <div class="seat seat-left" data-seat="1-1-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">1排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="1-1-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">1排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="1-2">
+                    <div class="seat seat-left" data-seat="1-2-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">2排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="1-2-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">2排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="1-3">
+                    <div class="seat seat-left" data-seat="1-3-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">3排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="1-3-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">3排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="1-4">
+                    <div class="seat seat-left" data-seat="1-4-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">4排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="1-4-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">4排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="1-5">
+                    <div class="seat seat-left" data-seat="1-5-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">5排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="1-5-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">5排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="1-6">
+                    <div class="seat seat-left" data-seat="1-6-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">6排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="1-6-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">6排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="1-7">
+                    <div class="seat seat-left" data-seat="1-7-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">7排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="1-7-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">7排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="group" id="group2">
+                <div class="group-title">第二组（7对同桌）</div>
+                <!-- 7对同桌 -->
+                <div class="desk" data-desk="2-1">
+                    <div class="seat seat-left" data-seat="2-1-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">1排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="2-1-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">1排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="2-2">
+                    <div class="seat seat-left" data-seat="2-2-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">2排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="2-2-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">2排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="2-3">
+                    <div class="seat seat-left" data-seat="2-3-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">3排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="2-3-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">3排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="2-4">
+                    <div class="seat seat-left" data-seat="2-4-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">4排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="2-4-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">4排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="2-5">
+                    <div class="seat seat-left" data-seat="2-5-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">5排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="2-5-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">5排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="2-6">
+                    <div class="seat seat-left" data-seat="2-6-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">6排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="2-6-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">6排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="2-7">
+                    <div class="seat seat-left" data-seat="2-7-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">7排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="2-7-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">7排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="group" id="group3">
+                <div class="group-title">第三组（7对同桌）</div>
+                <!-- 7对同桌 -->
+                <div class="desk" data-desk="3-1">
+                    <div class="seat seat-left" data-seat="3-1-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">1排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="3-1-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">1排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="3-2">
+                    <div class="seat seat-left" data-seat="3-2-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">2排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="3-2-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">2排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="3-3">
+                    <div class="seat seat-left" data-seat="3-3-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">3排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="3-3-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">3排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="3-4">
+                    <div class="seat seat-left" data-seat="3-4-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">4排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="3-4-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">4排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="3-5">
+                    <div class="seat seat-left" data-seat="3-5-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">5排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="3-5-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">5排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="3-6">
+                    <div class="seat seat-left" data-seat="3-6-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">6排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="3-6-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">6排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="3-7">
+                    <div class="seat seat-left" data-seat="3-7-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">7排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="3-7-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">7排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="group" id="group4">
+                <div class="group-title">第四组（7对同桌）</div>
+                <!-- 7对同桌 -->
+                <div class="desk" data-desk="4-1">
+                    <div class="seat seat-left" data-seat="4-1-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">1排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="4-1-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">1排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="4-2">
+                    <div class="seat seat-left" data-seat="4-2-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">2排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="4-2-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">2排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="4-3">
+                    <div class="seat seat-left" data-seat="4-3-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">3排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="4-3-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">3排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="4-4">
+                    <div class="seat seat-left" data-seat="4-4-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">4排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="4-4-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">4排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="4-5">
+                    <div class="seat seat-left" data-seat="4-5-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">5排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="4-5-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">5排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="4-6">
+                    <div class="seat seat-left" data-seat="4-6-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">6排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="4-6-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">6排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+                <div class="desk" data-desk="4-7">
+                    <div class="seat seat-left" data-seat="4-7-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">7排1座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                    <div class="seat" data-seat="4-7-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        <span class="desk-label">7排2座</span>
+                        <span class="empty-seat">空座位</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let students = [];
+        let studentElements = {};
+        let seatAssignments = {};
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 文件上传处理
+            document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+            
+            // 导出按钮
+            document.getElementById('exportBtn').addEventListener('click', exportSeatMap);
+            
+            // 重置按钮
+            document.getElementById('resetBtn').addEventListener('click', resetSeats);
+        });
+        
+        // 新添加的函数：将学生返回卡片池
+        function returnStudentToPool(studentElement) {
+            const studentPool = document.getElementById('studentPool');
+        
+            // 移除删除按钮
+            const deleteBtn = studentElement.querySelector('.delete-btn');
+            if (deleteBtn) {
+                studentElement.removeChild(deleteBtn);
+            }
+        
+            // 将学生放回卡片池
+            studentPool.appendChild(studentElement);
+        
+            // 在原来的座位上添加空座位提示
+            const seat = studentElement.parentElement;
+            if (seat && seat.classList.contains('seat')) {
+                const emptySpan = document.createElement('span');
+                emptySpan.className = 'empty-seat';
+                emptySpan.textContent = '空座位';
+                seat.appendChild(emptySpan);
+            
+                // 更新座位分配记录
+                const seatId = seat.getAttribute('data-seat');
+                delete seatAssignments[seatId];
+            }
+        }
+
+
+        // 处理文件上传
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // 获取第一个工作表
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // 将工作表转换为JSON
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    
+                    // 提取学生名单（假设是单列）
+                    students = jsonData.map(row => row[0]).filter(name => name && name.trim() !== '');
+                    
+                    if (students.length !== 56) {
+                        document.getElementById('uploadStatus').textContent = 
+                            `错误：名单中应有56名学生，但找到了${students.length}名`;
+                        return;
+                    }
+                    
+                    document.getElementById('uploadStatus').textContent = 
+                        `成功上传 ${students.length} 名学生名单`;
+                    
+                    // 显示学生卡片
+                    displayStudentCards();
+                    
+                    // 启用按钮
+                    document.getElementById('exportBtn').disabled = false;
+                    document.getElementById('resetBtn').disabled = false;
+                    
+                } catch (error) {
+                    document.getElementById('uploadStatus').textContent = 
+                        '错误：无法解析Excel文件，请确保格式正确';
+                    console.error(error);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 显示学生卡片
+        function displayStudentCards() {
+            const studentPool = document.getElementById('studentPool');
+            studentPool.innerHTML = '';
+            
+            students.forEach((student, index) => {
+                const card = document.createElement('div');
+                card.className = 'student-card';
+                card.textContent = student;
+                card.id = 'student-' + index;
+                card.draggable = true;
+                card.addEventListener('dragstart', drag);
+                
+                 // 添加删除按钮（仅当卡片在座位上时显示）
+                if (card.parentElement && card.parentElement.classList.contains('seat')) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.innerHTML = '×';
+                    deleteBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        returnStudentToPool(card);
+                    };
+                    card.appendChild(deleteBtn);
+                }
+            
+                
+                studentPool.appendChild(card);
+                studentElements['student-' + index] = student;
+            });
+        }
+        
+        // 拖拽功能
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+        
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+        
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const draggedElement = document.getElementById(data);
+            
+            if (draggedElement) {
+                const seatElement = ev.currentTarget;
+                const seatId = seatElement.getAttribute('data-seat');
+                
+                // 如果座位上已经有学生，先放回学生池
+                if (seatElement.children.length > 1 && !seatElement.querySelector('.empty-seat')) {
+                    const currentStudent = Array.from(seatElement.children).find(child => child.classList.contains('student-card'));
+                    if (currentStudent) {
+                        returnStudentToPool(currentStudent);
+                    }
+                }
+                
+                // 放置新学生
+                const emptySeat = seatElement.querySelector('.empty-seat');
+                if (emptySeat) {
+                    seatElement.removeChild(emptySeat);
+                }
+                seatElement.appendChild(draggedElement);
+
+                // 添加删除按钮
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    returnStudentToPool(draggedElement);
+                };
+                draggedElement.appendChild(deleteBtn);
+                
+                // 更新座位分配记录
+                seatAssignments[seatId] = data;
+            }
+        }
+
+        
+        
+        // 导出座位表
+        // 导出座位表（修改为教室布局格式）
+    function exportSeatMap() {
+        // 准备数据 - 创建一个7排x8座(4组x2座)的矩阵
+        const seatMap = Array.from({length: 7}, () => Array(8).fill(''));
+        
+        // 填充数据
+        const seats = document.querySelectorAll('.seat');
+        seats.forEach(seat => {
+            const seatId = seat.getAttribute('data-seat');
+            const [group, row, seatNum] = seatId.split('-').map(Number);
+            const studentElement = seat.querySelector('.student-card');
+            
+            if (studentElement) {
+                // 计算Excel中的列位置：(group-1)*2 + (seatNum-1)
+                const col = (group-1)*2 + (seatNum-1);
+                seatMap[row-1][col] = studentElement.textContent.replace(/×$/, '').trim();
+            }
+        });
+
+        // 创建工作表数据 - 创建教室布局
+        const data = [
+            ['', '', '——讲台——', '', ''],  // 讲台行
+            [], // 空行
+        ];
+        
+        // 添加组标题
+        const groupTitles = ['第一组', '第二组', '第三组', '第四组'];
+        const groupHeader = [];
+        for (let i = 0; i < 4; i++) {
+            groupHeader.push(groupTitles[i], '');
+        }
+        data.push(groupHeader);
+        
+        // 添加座位数据
+        seatMap.forEach((row, rowIndex) => {
+            const rowData = [];
+            row.forEach((student, colIndex) => {
+                rowData.push(student || '(空)');
+            });
+            data.push(rowData);
+        });
+
+        // 创建工作表
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        
+        // 设置列宽
+        ws['!cols'] = Array(8).fill().map(() => ({wch: 12}));
+        
+        // 合并单元格
+        ws['!merges'] = [
+            // 合并讲台单元格
+            {s: {r: 0, c: 1}, e: {r: 0, c: 6}},
+            // 合并组标题
+            {s: {r: 2, c: 0}, e: {r: 2, c: 1}},
+            {s: {r: 2, c: 2}, e: {r: 2, c: 3}},
+            {s: {r: 2, c: 4}, e: {r: 2, c: 5}},
+            {s: {r: 2, c: 6}, e: {r: 2, c: 7}}
+        ];
+
+        // 创建工作簿
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "座位表");
+        
+        // 导出Excel文件
+        XLSX.writeFile(wb, "班级座位表.xlsx");
+    }
+        
+        // 重置座位
+        function resetSeats() {
+            // 清空所有座位
+            const seats = document.querySelectorAll('.seat');
+            seats.forEach(seat => {
+                const studentElement = seat.querySelector('.student-card');
+                if (studentElement) {
+                    returnStudentToPool(studentElement);
+                }
+                
+                // 检查是否已经有空座位提示
+                if (!seat.querySelector('.empty-seat')) {
+                    const emptySpan = document.createElement('span');
+                    emptySpan.className = 'empty-seat';
+                    emptySpan.textContent = '空座位';
+                    seat.appendChild(emptySpan);
+                }
+            });
+            
+            // 清空座位分配记录
+            seatAssignments = {};
+        }
+    </script>
+</body>
+</html>
